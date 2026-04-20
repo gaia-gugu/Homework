@@ -1,0 +1,70 @@
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: max(100px, calc(80px + env(safe-area-inset-bottom)));
+}
+
+/* Floating action button */
+.fab {
+  position: fixed;
+  bottom: max(24px, env(safe-area-inset-bottom, 24px));
+  right: 24px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b9d, #ff4f8b);
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 24px rgba(255,107,157,0.5);
+  z-index: 50;
+  transition: transform 0.15s, box-shadow 0.15s;
+  touch-action: manipulation;
+  line-height: 1;
+}
+
+.fab:hover {
+  transform: scale(1.08) translateY(-2px);
+  box-shadow: 0 10px 28px rgba(255,107,157,0.6);
+}
+
+.fab:active {
+  transform: scale(0.93);
+}
+
+/* Tablet layout */
+@media (min-width: 768px) {
+  .app-layout {
+    max-width: 768px;
+    margin: 0 auto;
+  }
+
+  .task-list {
+    padding: 24px;
+  }
+
+  .fab {
+    right: calc(50% - 384px + 24px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-layout {
+    max-width: 900px;
+  }
+
+  .fab {
+    right: calc(50% - 450px + 24px);
+  }
+}
