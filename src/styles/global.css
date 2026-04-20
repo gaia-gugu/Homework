@@ -1,0 +1,61 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --font: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  --bg: #fef9f0;
+  --surface: #ffffff;
+  --surface2: #f8f4ef;
+  --border: #e8e0d5;
+  --text: #2d2417;
+  --text-muted: #8b7d6b;
+  --primary: #ff6b9d;
+  --primary-light: #ffe4ef;
+  --accent: #ffd700;
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 6px 24px rgba(0,0,0,0.12);
+  --touch: 48px;
+}
+
+html, body, #root {
+  height: 100%;
+  height: 100dvh;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 16px;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  touch-action: manipulation;
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+
+/* Smooth scrolling on iOS */
+.scroll-area {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
