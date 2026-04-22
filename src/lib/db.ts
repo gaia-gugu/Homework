@@ -299,6 +299,15 @@ export async function isSeeded(): Promise<boolean> {
   return !snap.empty;
 }
 
+export async function updateGrandchildAppearanceInConversations(grandchildId: string, color: string, avatar: string) {
+  const q = query(collection(db, 'conversations'), where('grandchildId', '==', grandchildId));
+  const snap = await getDocs(q);
+  if (snap.empty) return;
+  const batch = writeBatch(db);
+  snap.docs.forEach(d => batch.update(d.ref, { grandchildColor: color, grandchildAvatar: avatar }));
+  await batch.commit();
+}
+
 // ── Reactions ────────────────────────────────────────────────────────
 
 export async function toggleReaction(messageId: string, userId: string, emoji: string, adding: boolean) {

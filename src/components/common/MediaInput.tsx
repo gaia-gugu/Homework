@@ -15,6 +15,7 @@ export function MediaInput({ conversationId, onSend, accentColor, placeholder = 
   const [recording, setRecording] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -28,31 +29,40 @@ export function MediaInput({ conversationId, onSend, accentColor, placeholder = 
 
   async function handleSendPhoto() {
     if (!pendingFile || sending) return;
-    setSending(true);
+    setSending(true); setError(null);
     try {
       const url = await uploadConversationPhoto(conversationId, pendingFile);
       await onSend(text.trim() || '[Photo]', 'photo', url);
       setText(''); setPendingFile(null); setPreviewUrl(null);
+    } catch (e) {
+      setError('Photo upload failed. This works once the app is deployed online.');
     } finally { setSending(false); }
   }
 
   async function startRecording() {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mr = new MediaRecorder(stream);
-    mediaRecorderRef.current = mr;
-    chunksRef.current = [];
-    mr.ondataavailable = e => chunksRef.current.push(e.data);
-    mr.onstop = async () => {
-      stream.getTracks().forEach(t => t.stop());
-      const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-      setSending(true);
-      try {
-        const url = await uploadVoiceMessage(conversationId, blob);
-        await onSend('[Voice message]', 'voice', url);
-      } finally { setSending(false); setRecording(false); }
-    };
-    mr.start();
-    setRecording(true);
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+      chunksRef.current = [];
+      mr.ondataavailable = e => chunksRef.current.push(e.data);
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        setSending(true);
+        try {
+          const url = await uploadVoiceMessage(conversationId, blob);
+          await onSend('[Voice message]', 'voice', url);
+        } catch {
+          setError('Voice upload failed. This works once the app is deployed online.');
+        } finally { setSending(false); setRecording(false); }
+      };
+      mr.start();
+      setRecording(true);
+    } catch {
+      setError('Microphone access denied. Please allow microphone in your browser settings.');
+    }
   }
 
   function stopRecording() {
@@ -122,6 +132,7 @@ export function MediaInput({ conversationId, onSend, accentColor, placeholder = 
         </button>
       </div>
       {recording && <p className="text-xs text-red-500 text-center mt-1.5 animate-pulse">Recording… release to send</p>}
+      {error && <p className="text-xs text-red-500 text-center mt-1.5">{error}</p>}
     </div>
   );
 }

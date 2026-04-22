@@ -20,7 +20,7 @@ export function GrandparentMyConversations({ unansweredOnly }: GrandparentMyConv
   }, [user]);
 
   const displayConvs = unansweredOnly
-    ? conversations.filter(c => c.status === 'open' && c.unreadGrandparent)
+    ? conversations.filter(c => c.status === 'open' && c.lastMessageBy === c.grandchildName)
     : conversations.filter(c =>
         filter === 'all' ? true : filter === 'open' ? c.status === 'open' : c.status === 'closed'
       );

@@ -18,7 +18,7 @@ export function GrandparentHome() {
     return subscribeGrandparentConversations(user.id, setConversations);
   }, [user]);
 
-  const unanswered = conversations.filter(c => c.status === 'open' && c.unreadGrandparent);
+  const unanswered = conversations.filter(c => c.status === 'open' && c.lastMessageBy === c.grandchildName);
   const totalOpen  = conversations.filter(c => c.status === 'open');
 
   const color = user?.color ?? '#2563eb';

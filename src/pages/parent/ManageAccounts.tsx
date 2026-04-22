@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { PageHeader } from '../../components/common/PageHeader';
 import { Avatar } from '../../components/common/Avatar';
 import { getAllUsers, createFamilyUser, updateUserProfile, deleteUserAccount, updateUserPin, updateUsername } from '../../lib/auth';
+import { updateGrandchildAppearanceInConversations } from '../../lib/db';
 import type { AppUser, Role } from '../../types';
 import { CHILD_COLORS, CHILD_AVATARS, GRANDPA_COLOR, GRANDMA_COLOR, COLOR_PALETTE, AVATAR_OPTIONS } from '../../constants';
 
@@ -66,6 +67,9 @@ export function ManageAccounts() {
       }
       if (editState.newPin && editState.newPin.length === 4) {
         await updateUserPin(u.id, editState.newPin);
+      }
+      if (u.role === 'grandchild' && (editState.color !== u.color || editState.avatar !== u.avatar)) {
+        await updateGrandchildAppearanceInConversations(u.id, editState.color, editState.avatar);
       }
       setUsers(prev => prev.map(p => p.id === u.id ? { ...p, ...updates } : p));
       setEditingId(null);
