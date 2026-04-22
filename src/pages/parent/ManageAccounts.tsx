@@ -3,9 +3,7 @@ import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { PageHeader } from '../../components/common/PageHeader';
 import { Avatar } from '../../components/common/Avatar';
-import { getAllUsers, createFamilyUser, updateUserProfile, deleteUserAccount } from '../../lib/auth';
-import { updatePassword } from 'firebase/auth';
-import { auth } from '../../firebase';
+import { getAllUsers, createFamilyUser, updateUserProfile, deleteUserAccount, updateUserPin } from '../../lib/auth';
 import type { AppUser, Role } from '../../types';
 import { CHILD_COLORS, CHILD_AVATARS, GRANDPA_COLOR, GRANDMA_COLOR } from '../../constants';
 
@@ -56,9 +54,8 @@ export function ManageAccounts() {
         notificationEmail: editState.notificationEmail,
       };
       await updateUserProfile(u.id, updates);
-      if (editState.newPin && editState.newPin.length === 4 && auth.currentUser) {
-        const SUFFIX = 'FMLY2024';
-        await updatePassword(auth.currentUser, `${editState.newPin}${SUFFIX}`);
+      if (editState.newPin && editState.newPin.length === 4) {
+        await updateUserPin(u.id, editState.newPin);
       }
       setUsers(prev => prev.map(p => p.id === u.id ? { ...p, ...updates } : p));
       setEditingId(null);

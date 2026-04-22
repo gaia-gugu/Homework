@@ -17,23 +17,55 @@ import {
 import { auth, db } from '../firebase';
 import type { AppUser, Role, Lang } from '../types';
 
-const SUFFIX = 'FMLY2024';
+// Firebase Auth uses a fixed session password (never the PIN).
+// The PIN lives only in Firestore so the parent can change anyone's PIN freely.
+const FIXED_SUFFIX = 'FMLY2024FIX';
+const OLD_SUFFIX   = 'FMLY2024';     // used by accounts created before this fix
 
 function toEmail(username: string) {
   return `${username.toLowerCase().replace(/\s+/g, '_')}@family.local`;
 }
 
-function toPassword(pin: string) {
-  return `${pin}${SUFFIX}`;
+function toFixedPassword(username: string) {
+  return `${username.toLowerCase()}${FIXED_SUFFIX}`;
+}
+
+function toOldPassword(pin: string) {
+  return `${pin}${OLD_SUFFIX}`;
 }
 
 export async function loginWithPin(username: string, pin: string): Promise<AppUser> {
   const email = toEmail(username);
-  const password = toPassword(pin);
-  const cred = await signInWithEmailAndPassword(auth, email, password);
-  const snap = await getDoc(doc(db, 'users', cred.user.uid));
+  let userId: string;
+
+  // Try the new fixed-password scheme first
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, toFixedPassword(username));
+    userId = cred.user.uid;
+  } catch {
+    // Fall back to old PIN-based scheme (accounts created before this fix)
+    const cred = await signInWithEmailAndPassword(auth, email, toOldPassword(pin));
+    userId = cred.user.uid;
+    // Silently migrate to fixed password so future logins use the new scheme
+    try { await updatePassword(auth.currentUser!, toFixedPassword(username)); } catch { /* ignore */ }
+  }
+
+  const snap = await getDoc(doc(db, 'users', userId));
   if (!snap.exists()) throw new Error('User profile not found');
-  return { id: snap.id, ...snap.data() } as AppUser;
+  const data = snap.data();
+
+  if (data.pin) {
+    // PIN is stored — verify it
+    if (data.pin !== pin) {
+      await signOut(auth);
+      throw new Error('Invalid PIN');
+    }
+  } else {
+    // First login on this account — store PIN for future verification
+    await updateDoc(doc(db, 'users', userId), { pin });
+  }
+
+  return { id: userId, ...data } as AppUser;
 }
 
 export async function logoutUser() {
@@ -54,8 +86,7 @@ export async function createFamilyUser(params: {
 }): Promise<AppUser> {
   const { createUserWithEmailAndPassword } = await import('firebase/auth');
   const email = toEmail(params.username);
-  const password = toPassword(params.pin);
-  const cred = await createUserWithEmailAndPassword(auth, email, password);
+  const cred = await createUserWithEmailAndPassword(auth, email, toFixedPassword(params.username));
   const userData: Omit<AppUser, 'id'> = {
     username:    params.username,
     displayName: params.displayName,
@@ -64,6 +95,7 @@ export async function createFamilyUser(params: {
     avatar:      params.avatar,
     email,
     language:    params.language,
+    pin:         params.pin,
     createdAt:   serverTimestamp() as AppUser['createdAt'],
     createdBy:   params.createdBy,
     ...(params.grandparentTitle  && { grandparentTitle:  params.grandparentTitle }),
@@ -73,9 +105,8 @@ export async function createFamilyUser(params: {
   return { id: cred.user.uid, ...userData };
 }
 
+// Parent can update any user's PIN — only touches Firestore, no Firebase Auth change needed
 export async function updateUserPin(userId: string, newPin: string) {
-  if (!auth.currentUser) throw new Error('Not authenticated');
-  await updatePassword(auth.currentUser, toPassword(newPin));
   await updateDoc(doc(db, 'users', userId), { pin: newPin });
 }
 

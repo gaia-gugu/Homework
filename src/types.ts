@@ -17,6 +17,7 @@ export interface AppUser {
   language: Lang;
   grandparentTitle?: '公公' | '婆婆';
   notificationEmail?: string;
+  pin?: string;
   createdAt: Timestamp;
   createdBy: string;
 }
