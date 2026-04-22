@@ -12,6 +12,8 @@ import {
   serverTimestamp,
   limit,
   writeBatch,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type {
@@ -295,6 +297,14 @@ export async function seedPromptsAndCategories(
 export async function isSeeded(): Promise<boolean> {
   const snap = await getDocs(query(collection(db, 'categories'), limit(1)));
   return !snap.empty;
+}
+
+// ── Reactions ────────────────────────────────────────────────────────
+
+export async function toggleReaction(messageId: string, userId: string, emoji: string, adding: boolean) {
+  await updateDoc(doc(db, 'messages', messageId), {
+    [`reactions.${emoji}`]: adding ? arrayUnion(userId) : arrayRemove(userId),
+  });
 }
 
 // ── Notifications (in-app via Firestore) ─────────────────────────────

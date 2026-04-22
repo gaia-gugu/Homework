@@ -14,7 +14,7 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       language: 'en',
-      setUser: (user) => set({ user }),
+      setUser: (user) => set({ user, ...(user ? { language: user.language } : {}) }),
       setLanguage: (language) => set({ language }),
     }),
     { name: 'fs-auth' }

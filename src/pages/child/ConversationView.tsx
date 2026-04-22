@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import { PageHeader } from '../../components/common/PageHeader';
 import { MessageBubble } from '../../components/common/MessageBubble';
 import { MediaInput } from '../../components/common/MediaInput';
-import { subscribeConversation, subscribeMessages, sendMessage, closeConversation, markConversationRead } from '../../lib/db';
+import { subscribeConversation, subscribeMessages, sendMessage, closeConversation, markConversationRead, toggleReaction } from '../../lib/db';
 import type { Conversation, Message } from '../../types';
 import { GRANDPA_COLOR, GRANDMA_COLOR } from '../../constants';
 
@@ -99,6 +99,8 @@ export function ChildConversationView() {
             message={m}
             isMine={m.senderId === user?.id}
             myColor={user?.color ?? '#7c3aed'}
+            currentUserId={user?.id}
+            onReact={(msgId, emoji, adding) => toggleReaction(msgId, user!.id, emoji, adding)}
           />
         ))}
         <div ref={bottomRef} />

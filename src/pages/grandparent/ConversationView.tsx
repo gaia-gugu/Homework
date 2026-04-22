@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import { PageHeader } from '../../components/common/PageHeader';
 import { MessageBubble } from '../../components/common/MessageBubble';
 import { MediaInput } from '../../components/common/MediaInput';
-import { subscribeConversation, subscribeMessages, sendMessage, closeConversation, markConversationRead } from '../../lib/db';
+import { subscribeConversation, subscribeMessages, sendMessage, closeConversation, markConversationRead, toggleReaction } from '../../lib/db';
 import type { Conversation, Message } from '../../types';
 
 export function GrandparentConversationView() {
@@ -96,6 +96,8 @@ export function GrandparentConversationView() {
             message={m}
             isMine={m.senderId === user?.id}
             myColor={color}
+            currentUserId={user?.id}
+            onReact={(msgId, emoji, adding) => toggleReaction(msgId, user!.id, emoji, adding)}
           />
         ))}
         <div ref={bottomRef} />

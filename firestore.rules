@@ -59,7 +59,13 @@ service cloud.firestore {
         myProfile().role == 'grandparent' ||
         isParent()
       );
-      allow update, delete: if isParent();
+      // reactions field can be updated by any family member; only parents can delete
+      allow update: if isAuth() && (
+        isParent() ||
+        myProfile().role == 'grandchild' ||
+        myProfile().role == 'grandparent'
+      );
+      allow delete: if isParent();
     }
 
     // Prompt categories

@@ -52,6 +52,7 @@ export interface Message {
   text: string;
   mediaUrl?: string;
   createdAt: Timestamp;
+  reactions?: Record<string, string[]>;
 }
 
 export interface PromptCategory {

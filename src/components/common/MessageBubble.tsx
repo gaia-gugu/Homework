@@ -1,10 +1,14 @@
 import { Mic, Image as ImageIcon } from 'lucide-react';
 import type { Message } from '../../types';
 
+const REACTION_EMOJIS = ['❤️', '😄', '👍', '🥹'];
+
 interface MessageBubbleProps {
   message: Message;
   isMine: boolean;
   myColor: string;
+  currentUserId?: string;
+  onReact?: (messageId: string, emoji: string, adding: boolean) => void;
 }
 
 function formatTime(ts: { toDate?: () => Date } | null | undefined) {
@@ -13,9 +17,9 @@ function formatTime(ts: { toDate?: () => Date } | null | undefined) {
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function MessageBubble({ message: m, isMine, myColor }: MessageBubbleProps) {
+export function MessageBubble({ message: m, isMine, myColor, currentUserId, onReact }: MessageBubbleProps) {
   return (
-    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-2`}>
+    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-3`}>
       <div className={`max-w-[80%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isMine && (
           <span className="text-xs text-gray-400 mb-1 ml-1">{m.senderName}</span>
@@ -49,7 +53,31 @@ export function MessageBubble({ message: m, isMine, myColor }: MessageBubbleProp
             </div>
           )}
         </div>
+
         <span className="text-xs text-gray-400 mt-1 mx-1">{formatTime(m.createdAt)}</span>
+
+        {/* Reactions */}
+        {onReact && currentUserId && (
+          <div className={`flex gap-1 mt-1 flex-wrap ${isMine ? 'justify-end' : 'justify-start'}`}>
+            {REACTION_EMOJIS.map(emoji => {
+              const users = m.reactions?.[emoji] ?? [];
+              const hasReacted = users.includes(currentUserId);
+              return (
+                <button
+                  key={emoji}
+                  onClick={() => onReact(m.id, emoji, !hasReacted)}
+                  className={`text-sm rounded-full px-2 py-0.5 transition-all border ${
+                    hasReacted
+                      ? 'bg-white border-gray-300 shadow-sm scale-110'
+                      : 'bg-transparent border-transparent opacity-30 hover:opacity-70'
+                  }`}
+                >
+                  {emoji}{users.length > 0 ? ` ${users.length}` : ''}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
