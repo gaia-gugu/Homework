@@ -57,17 +57,17 @@ export async function createFamilyUser(params: {
   const password = toPassword(params.pin);
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   const userData: Omit<AppUser, 'id'> = {
-    username:          params.username,
-    displayName:       params.displayName,
-    role:              params.role,
-    color:             params.color,
-    avatar:            params.avatar,
+    username:    params.username,
+    displayName: params.displayName,
+    role:        params.role,
+    color:       params.color,
+    avatar:      params.avatar,
     email,
-    language:          params.language,
-    grandparentTitle:  params.grandparentTitle,
-    notificationEmail: params.notificationEmail,
-    createdAt:         serverTimestamp() as AppUser['createdAt'],
-    createdBy:         params.createdBy,
+    language:    params.language,
+    createdAt:   serverTimestamp() as AppUser['createdAt'],
+    createdBy:   params.createdBy,
+    ...(params.grandparentTitle  && { grandparentTitle:  params.grandparentTitle }),
+    ...(params.notificationEmail && { notificationEmail: params.notificationEmail }),
   };
   await setDoc(doc(db, 'users', cred.user.uid), userData);
   return { id: cred.user.uid, ...userData };
