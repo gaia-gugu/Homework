@@ -154,26 +154,33 @@ export function subscribeMessages(conversationId: string, cb: (msgs: Message[]) 
 }
 
 export function subscribeChildConversations(grandchildId: string, cb: (convs: Conversation[]) => void) {
-  const q = query(
-    collection(db, 'conversations'),
-    where('grandchildId', '==', grandchildId),
-    orderBy('lastMessageAt', 'desc'),
-  );
-  return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as Conversation))));
+  const q = query(collection(db, 'conversations'), where('grandchildId', '==', grandchildId));
+  return onSnapshot(q, snap => {
+    const convs = snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Conversation))
+      .sort((a, b) => (b.lastMessageAt?.toDate?.()?.getTime() ?? 0) - (a.lastMessageAt?.toDate?.()?.getTime() ?? 0));
+    cb(convs);
+  });
 }
 
 export function subscribeGrandparentConversations(grandparentId: string, cb: (convs: Conversation[]) => void) {
-  const q = query(
-    collection(db, 'conversations'),
-    where('grandparentId', '==', grandparentId),
-    orderBy('lastMessageAt', 'desc'),
-  );
-  return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as Conversation))));
+  const q = query(collection(db, 'conversations'), where('grandparentId', '==', grandparentId));
+  return onSnapshot(q, snap => {
+    const convs = snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Conversation))
+      .sort((a, b) => (b.lastMessageAt?.toDate?.()?.getTime() ?? 0) - (a.lastMessageAt?.toDate?.()?.getTime() ?? 0));
+    cb(convs);
+  });
 }
 
 export function subscribeAllConversations(cb: (convs: Conversation[]) => void) {
-  const q = query(collection(db, 'conversations'), orderBy('lastMessageAt', 'desc'));
-  return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as Conversation))));
+  const q = query(collection(db, 'conversations'));
+  return onSnapshot(q, snap => {
+    const convs = snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Conversation))
+      .sort((a, b) => (b.lastMessageAt?.toDate?.()?.getTime() ?? 0) - (a.lastMessageAt?.toDate?.()?.getTime() ?? 0));
+    cb(convs);
+  });
 }
 
 export async function getOpenConversation(grandchildId: string, grandparentId: string): Promise<Conversation | null> {
@@ -197,8 +204,10 @@ export async function getConversationById(id: string): Promise<Conversation | nu
 }
 
 export async function getAllConversationsOnce(): Promise<Conversation[]> {
-  const snap = await getDocs(query(collection(db, 'conversations'), orderBy('lastMessageAt', 'desc')));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Conversation));
+  const snap = await getDocs(collection(db, 'conversations'));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() } as Conversation))
+    .sort((a, b) => (b.lastMessageAt?.toDate?.()?.getTime() ?? 0) - (a.lastMessageAt?.toDate?.()?.getTime() ?? 0));
 }
 
 export async function getMessagesForConversation(conversationId: string): Promise<Message[]> {
