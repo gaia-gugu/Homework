@@ -140,9 +140,17 @@ export function subscribeMessages(conversationId: string, cb: (msgs: Message[]) 
   const q = query(
     collection(db, 'messages'),
     where('conversationId', '==', conversationId),
-    orderBy('createdAt', 'asc'),
   );
-  return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as Message))));
+  return onSnapshot(q, snap => {
+    const msgs = snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Message))
+      .sort((a, b) => {
+        const aMs = a.createdAt?.toDate?.()?.getTime() ?? 0;
+        const bMs = b.createdAt?.toDate?.()?.getTime() ?? 0;
+        return aMs - bMs;
+      });
+    cb(msgs);
+  });
 }
 
 export function subscribeChildConversations(grandchildId: string, cb: (convs: Conversation[]) => void) {
@@ -197,10 +205,15 @@ export async function getMessagesForConversation(conversationId: string): Promis
   const q = query(
     collection(db, 'messages'),
     where('conversationId', '==', conversationId),
-    orderBy('createdAt', 'asc'),
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Message));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() } as Message))
+    .sort((a, b) => {
+      const aMs = a.createdAt?.toDate?.()?.getTime() ?? 0;
+      const bMs = b.createdAt?.toDate?.()?.getTime() ?? 0;
+      return aMs - bMs;
+    });
 }
 
 // ── Prompts ──────────────────────────────────────────────────────────
