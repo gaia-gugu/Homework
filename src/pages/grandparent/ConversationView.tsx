@@ -82,11 +82,12 @@ export function GrandparentConversationView() {
       />
 
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 max-w-lg mx-auto w-full">
-        {messages.length > 0 && (
-          <div className="mb-4 text-center">
-            <span className="inline-block bg-white text-xs text-gray-400 px-3 py-1 rounded-full shadow-sm">
-              {conversation?.grandchildName} {language === 'zh' ? '的提问' : "'s question"}
-            </span>
+        {conversation?.title && (
+          <div className="mb-5 rounded-2xl p-4 text-center" style={{ backgroundColor: color + '18' }}>
+            <p className="text-xs font-semibold mb-2" style={{ color }}>
+              💬 {conversation.grandchildName} {language === 'zh' ? '的提问' : "'s question"}
+            </p>
+            <p className="text-base font-semibold text-gray-800 leading-snug">{conversation.title}</p>
           </div>
         )}
         {messages.map(m => (

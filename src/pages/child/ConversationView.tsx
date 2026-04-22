@@ -85,6 +85,14 @@ export function ChildConversationView() {
       />
 
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 max-w-lg mx-auto w-full">
+        {conversation?.title && (
+          <div className="mb-5 rounded-2xl p-4 text-center" style={{ backgroundColor: color + '18' }}>
+            <p className="text-xs font-semibold mb-2" style={{ color }}>
+              💬 {language === 'zh' ? `你问${conversation.grandparentTitle}` : `Your question to ${conversation.grandparentTitle}`}
+            </p>
+            <p className="text-base font-semibold text-gray-800 leading-snug">{conversation.title}</p>
+          </div>
+        )}
         {messages.map(m => (
           <MessageBubble
             key={m.id}
