@@ -15,6 +15,23 @@ export const CHILD_AVATARS = ['🦊', '🐨', '🐸', '🦋'];
 export const GRANDPA_COLOR = '#2563EB';
 export const GRANDMA_COLOR = '#DB2777';
 
+export const COLOR_PALETTE = [
+  '#EF4444', '#F97316', '#EAB308', '#EA580C', '#D97706',
+  '#22C55E', '#16A34A', '#10B981', '#14B8A6', '#059669',
+  '#06B6D4', '#0891B2', '#3B82F6', '#2563EB', '#6366F1',
+  '#8B5CF6', '#7C3AED', '#A855F7', '#EC4899', '#DB2777',
+  '#F43F5E', '#64748B', '#0F172A', '#92400E', '#065F46',
+];
+
+export const AVATAR_OPTIONS = [
+  '🦊', '🐨', '🐸', '🦋', '🐯', '🐼', '🦄', '🐶',
+  '🐱', '🐰', '🦁', '🐻', '🐮', '🐷', '🐙', '🦜',
+  '🐧', '🦩', '🐺', '🦝',
+  '🌟', '⭐', '🌈', '🎈', '🌸', '🌺', '🌻', '🍀',
+  '🚀', '🎨', '🎸', '🏆', '💎', '🔥',
+  '👤', '👴', '👵', '👦', '👧',
+];
+
 export const CATEGORIES: PromptCategory[] = [
   { id: 'childhood',   nameEn: 'Childhood & School Days', nameZh: '童年与学校时光', icon: '🏫', order: 1 },
   { id: 'family',      nameEn: 'Family & Traditions',     nameZh: '家庭与传统',     icon: '🏠', order: 2 },

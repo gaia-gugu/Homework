@@ -3,9 +3,9 @@ import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { PageHeader } from '../../components/common/PageHeader';
 import { Avatar } from '../../components/common/Avatar';
-import { getAllUsers, createFamilyUser, updateUserProfile, deleteUserAccount, updateUserPin } from '../../lib/auth';
+import { getAllUsers, createFamilyUser, updateUserProfile, deleteUserAccount, updateUserPin, updateUsername } from '../../lib/auth';
 import type { AppUser, Role } from '../../types';
-import { CHILD_COLORS, CHILD_AVATARS, GRANDPA_COLOR, GRANDMA_COLOR } from '../../constants';
+import { CHILD_COLORS, CHILD_AVATARS, GRANDPA_COLOR, GRANDMA_COLOR, COLOR_PALETTE, AVATAR_OPTIONS } from '../../constants';
 
 const ROLE_LABELS: Record<Role, string> = {
   parent:      'Parent',
@@ -13,9 +13,8 @@ const ROLE_LABELS: Record<Role, string> = {
   grandchild:  'Child',
 };
 
-const EMOJI_OPTIONS = ['👤','👴','👵','🦊','🐨','🐸','🦋','🌟','🎈','🌸','🍀','🦁'];
-
 interface EditState {
+  username: string;
   displayName: string;
   color: string;
   avatar: string;
@@ -40,7 +39,14 @@ export function ManageAccounts() {
 
   function startEdit(u: AppUser) {
     setEditingId(u.id);
-    setEditState({ displayName: u.displayName, color: u.color, avatar: u.avatar, notificationEmail: u.notificationEmail ?? '', newPin: '' });
+    setEditState({
+      username: u.username,
+      displayName: u.displayName,
+      color: u.color,
+      avatar: u.avatar,
+      notificationEmail: u.notificationEmail ?? '',
+      newPin: '',
+    });
   }
 
   async function saveEdit(u: AppUser) {
@@ -54,6 +60,10 @@ export function ManageAccounts() {
         notificationEmail: editState.notificationEmail,
       };
       await updateUserProfile(u.id, updates);
+      if (editState.username && editState.username !== u.username) {
+        await updateUsername(u.id, editState.username);
+        updates.username = editState.username;
+      }
       if (editState.newPin && editState.newPin.length === 4) {
         await updateUserPin(u.id, editState.newPin);
       }
@@ -113,28 +123,52 @@ export function ManageAccounts() {
                     <div className="p-4 space-y-3">
                       <div className="flex items-center gap-3 mb-2">
                         <Avatar name={editState.displayName || u.displayName} color={editState.color} avatar={editState.avatar} size="md" />
-                        <span className="text-sm text-gray-400">@{u.username}</span>
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-400 mb-1">Login username</p>
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm text-gray-400">@</span>
+                            <input
+                              value={editState.username}
+                              onChange={e => setEditState(s => ({ ...s!, username: e.target.value.toLowerCase().replace(/\s/g, '') }))}
+                              className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-sm outline-none focus:border-primary-400"
+                            />
+                          </div>
+                        </div>
                       </div>
                       <input value={editState.displayName} onChange={e => setEditState(s => ({ ...s!, displayName: e.target.value }))} placeholder="Display name" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
                       <input value={editState.notificationEmail} onChange={e => setEditState(s => ({ ...s!, notificationEmail: e.target.value }))} placeholder="Notification email (optional)" type="email" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
                       <input value={editState.newPin} onChange={e => setEditState(s => ({ ...s!, newPin: e.target.value.replace(/\D/g, '').slice(0, 4) }))} placeholder="New PIN (4 digits, leave blank to keep)" inputMode="numeric" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
+
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">Color</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {[...CHILD_COLORS, GRANDPA_COLOR, GRANDMA_COLOR, '#059669', '#d97706'].map(c => (
-                            <button key={c} onClick={() => setEditState(s => ({ ...s!, color: c }))} className="w-7 h-7 rounded-full border-2 transition-all" style={{ backgroundColor: c, borderColor: editState.color === c ? '#1f2937' : 'transparent' }} />
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Avatar</p>
+                        <p className="text-xs text-gray-500 mb-2">Colour</p>
                         <div className="flex gap-1.5 flex-wrap">
-                          {EMOJI_OPTIONS.map(e => (
-                            <button key={e} onClick={() => setEditState(s => ({ ...s!, avatar: e }))} className={`text-xl p-1 rounded-lg ${editState.avatar === e ? 'bg-primary-100 ring-2 ring-primary-400' : 'hover:bg-gray-100'}`}>{e}</button>
+                          {COLOR_PALETTE.map(c => (
+                            <button
+                              key={c}
+                              onClick={() => setEditState(s => ({ ...s!, color: c }))}
+                              className="w-8 h-8 rounded-full border-4 transition-all"
+                              style={{ backgroundColor: c, borderColor: editState.color === c ? '#1f2937' : 'transparent' }}
+                            />
                           ))}
                         </div>
                       </div>
-                      <div className="flex gap-2">
+
+                      <div>
+                        <p className="text-xs text-gray-500 mb-2">Avatar</p>
+                        <div className="flex gap-1 flex-wrap">
+                          {AVATAR_OPTIONS.map(e => (
+                            <button
+                              key={e}
+                              onClick={() => setEditState(s => ({ ...s!, avatar: e }))}
+                              className={`text-2xl p-1.5 rounded-xl transition-all ${editState.avatar === e ? 'bg-primary-100 ring-2 ring-primary-400' : 'hover:bg-gray-100'}`}
+                            >
+                              {e}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-1">
                         <button onClick={() => saveEdit(u)} disabled={saving} className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-bold text-sm flex items-center justify-center gap-1.5 disabled:opacity-50">
                           <Save size={15} /> {saving ? 'Saving…' : 'Save'}
                         </button>
@@ -181,8 +215,8 @@ export function ManageAccounts() {
                 <option value="婆婆">婆婆 (Paternal Grandmother)</option>
               </select>
             )}
-            <input value={newUser.username} onChange={e => setNewUser(s => ({ ...s, username: e.target.value.toLowerCase().replace(/\s/g, '') }))} placeholder="Username (no spaces)" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
-            <input value={newUser.displayName} onChange={e => setNewUser(s => ({ ...s, displayName: e.target.value }))} placeholder="Display name" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
+            <input value={newUser.username} onChange={e => setNewUser(s => ({ ...s, username: e.target.value.toLowerCase().replace(/\s/g, '') }))} placeholder="Login username (no spaces, e.g. emma)" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
+            <input value={newUser.displayName} onChange={e => setNewUser(s => ({ ...s, displayName: e.target.value }))} placeholder="Display name (e.g. Emma)" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
             <input value={newUser.pin} onChange={e => setNewUser(s => ({ ...s, pin: e.target.value.replace(/\D/g, '').slice(0, 4) }))} placeholder="4-digit PIN" inputMode="numeric" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
             <input value={newUser.notificationEmail} onChange={e => setNewUser(s => ({ ...s, notificationEmail: e.target.value }))} placeholder="Notification email (optional)" type="email" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
             <div className="flex gap-2">

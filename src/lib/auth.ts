@@ -35,24 +35,25 @@ function toOldPassword(pin: string) {
 }
 
 export async function loginWithPin(username: string, pin: string): Promise<AppUser> {
-  const email = toEmail(username);
-  let userId: string;
+  // Look up user by current username in Firestore — supports renamed usernames
+  const q = query(collection(db, 'users'), where('username', '==', username.toLowerCase().trim()));
+  const qsnap = await getDocs(q);
+  if (qsnap.empty) throw new Error('User not found');
+  const userDoc = qsnap.docs[0];
+  const userId = userDoc.id;
+  const data = userDoc.data();
+
+  // Derive Firebase Auth password from the stored (original) email prefix
+  const emailPrefix = data.email.replace('@family.local', '');
 
   // Try the new fixed-password scheme first
   try {
-    const cred = await signInWithEmailAndPassword(auth, email, toFixedPassword(username));
-    userId = cred.user.uid;
+    await signInWithEmailAndPassword(auth, data.email, toFixedPassword(emailPrefix));
   } catch {
-    // Fall back to old PIN-based scheme (accounts created before this fix)
-    const cred = await signInWithEmailAndPassword(auth, email, toOldPassword(pin));
-    userId = cred.user.uid;
-    // Silently migrate to fixed password so future logins use the new scheme
-    try { await updatePassword(auth.currentUser!, toFixedPassword(username)); } catch { /* ignore */ }
+    // Fall back to old PIN-based scheme (accounts created before the fix)
+    await signInWithEmailAndPassword(auth, data.email, toOldPassword(pin));
+    try { await updatePassword(auth.currentUser!, toFixedPassword(emailPrefix)); } catch { /* ignore */ }
   }
-
-  const snap = await getDoc(doc(db, 'users', userId));
-  if (!snap.exists()) throw new Error('User profile not found');
-  const data = snap.data();
 
   if (data.pin) {
     // PIN is stored — verify it
@@ -61,7 +62,7 @@ export async function loginWithPin(username: string, pin: string): Promise<AppUs
       throw new Error('Invalid PIN');
     }
   } else {
-    // First login on this account — store PIN for future verification
+    // First login — store PIN for future verification
     await updateDoc(doc(db, 'users', userId), { pin });
   }
 
@@ -108,6 +109,11 @@ export async function createFamilyUser(params: {
 // Parent can update any user's PIN — only touches Firestore, no Firebase Auth change needed
 export async function updateUserPin(userId: string, newPin: string) {
   await updateDoc(doc(db, 'users', userId), { pin: newPin });
+}
+
+// Parent can rename a user's login username — only touches Firestore; Firebase Auth email is unchanged
+export async function updateUsername(userId: string, newUsername: string) {
+  await updateDoc(doc(db, 'users', userId), { username: newUsername.toLowerCase().trim() });
 }
 
 export async function getAllUsers(): Promise<AppUser[]> {
