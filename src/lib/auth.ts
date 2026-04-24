@@ -13,12 +13,14 @@ import {
   query,
   where,
   getDocs,
+  deleteField,
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import type { AppUser, Role, Lang } from '../types';
 
 // Firebase Auth uses a fixed session password (never the PIN).
-// The PIN lives only in Firestore so the parent can change anyone's PIN freely.
+// The PIN lives in /userPins (auth-gated) so /users can stay publicly readable
+// for the username-based login lookup without leaking PINs.
 const FIXED_SUFFIX = 'FMLY2024FIX';
 const OLD_SUFFIX   = 'FMLY2024';     // used by accounts created before this fix
 
@@ -35,39 +37,53 @@ function toOldPassword(pin: string) {
 }
 
 export async function loginWithPin(username: string, pin: string): Promise<AppUser> {
-  // Derive email from the entered username. Firestore rules require auth to
-  // read /users, so we must sign into Firebase Auth *before* loading the
-  // profile. This means login uses the original username (the email prefix),
-  // even if a parent has since renamed the user in Firestore.
-  const normalizedName = username.toLowerCase().trim();
-  const email = toEmail(normalizedName);
+  // Query Firestore by username to get the stored email (users collection is publicly readable)
+  const q = query(collection(db, 'users'), where('username', '==', username.toLowerCase().trim()));
+  const qsnap = await getDocs(q);
+  if (qsnap.empty) throw new Error('User not found');
+  const userDoc = qsnap.docs[0];
+  const userId = userDoc.id;
+  const data = userDoc.data();
+
+  // Derive Firebase Auth password from the stored (original) email prefix
+  const emailPrefix = data.email.replace('@family.local', '');
 
   // Try the new fixed-password scheme first
   try {
-    await signInWithEmailAndPassword(auth, email, toFixedPassword(normalizedName));
+    await signInWithEmailAndPassword(auth, data.email, toFixedPassword(emailPrefix));
   } catch {
     // Fall back to old PIN-based scheme (accounts created before the fix)
-    await signInWithEmailAndPassword(auth, email, toOldPassword(pin));
-    try { await updatePassword(auth.currentUser!, toFixedPassword(normalizedName)); } catch { /* ignore */ }
+    await signInWithEmailAndPassword(auth, data.email, toOldPassword(pin));
+    try { await updatePassword(auth.currentUser!, toFixedPassword(emailPrefix)); } catch { /* ignore */ }
   }
 
-  const userId = auth.currentUser!.uid;
-  const snap = await getDoc(doc(db, 'users', userId));
-  if (!snap.exists()) throw new Error('User profile not found');
-  const data = snap.data();
+  // Verify PIN from /userPins (auth-gated so it's not publicly readable)
+  const pinSnap = await getDoc(doc(db, 'userPins', userId));
+  let storedPin: string | undefined = pinSnap.exists() ? pinSnap.data().pin : undefined;
 
-  if (data.pin) {
-    // PIN is stored — verify it
-    if (data.pin !== pin) {
+  // One-time migration: older accounts kept the PIN inside the /users doc.
+  // Move it to /userPins and strip it from /users so public reads don't leak it.
+  if (!storedPin && data.pin) {
+    storedPin = data.pin as string;
+    try {
+      await setDoc(doc(db, 'userPins', userId), { pin: storedPin });
+      await updateDoc(doc(db, 'users', userId), { pin: deleteField() });
+    } catch { /* ignore — next login will retry */ }
+  }
+
+  if (storedPin) {
+    if (storedPin !== pin) {
       await signOut(auth);
       throw new Error('Invalid PIN');
     }
   } else {
-    // First login — store PIN for future verification
-    await updateDoc(doc(db, 'users', userId), { pin });
+    // First login on this account — store PIN for future verification
+    await setDoc(doc(db, 'userPins', userId), { pin });
   }
 
-  return { id: userId, ...data } as AppUser;
+  const cleanData = { ...data } as Record<string, unknown>;
+  delete cleanData.pin;
+  return { id: userId, ...cleanData } as AppUser;
 }
 
 export async function logoutUser() {
@@ -97,19 +113,20 @@ export async function createFamilyUser(params: {
     avatar:      params.avatar,
     email,
     language:    params.language,
-    pin:         params.pin,
     createdAt:   serverTimestamp() as AppUser['createdAt'],
     createdBy:   params.createdBy,
     ...(params.grandparentTitle  && { grandparentTitle:  params.grandparentTitle }),
     ...(params.notificationEmail && { notificationEmail: params.notificationEmail }),
   };
   await setDoc(doc(db, 'users', cred.user.uid), userData);
+  // PIN lives separately so public reads on /users don't leak it.
+  await setDoc(doc(db, 'userPins', cred.user.uid), { pin: params.pin });
   return { id: cred.user.uid, ...userData };
 }
 
-// Parent can update any user's PIN — only touches Firestore, no Firebase Auth change needed
+// Parent can update any user's PIN — only touches /userPins, no Firebase Auth change needed
 export async function updateUserPin(userId: string, newPin: string) {
-  await updateDoc(doc(db, 'users', userId), { pin: newPin });
+  await setDoc(doc(db, 'userPins', userId), { pin: newPin });
 }
 
 // Parent can rename a user's login username — only touches Firestore; Firebase Auth email is unchanged

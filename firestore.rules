@@ -20,12 +20,21 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      // Any authenticated user can read any profile (needed for displaying names)
-      allow read: if isAuth();
+      // Public read so the login screen can look up the stored email by
+      // username before signing in. PINs are NOT stored here — see /userPins.
+      allow read: if true;
       // Only parents can create/update/delete users (except own profile update)
       allow create: if isParent();
       allow update: if isParent() || request.auth.uid == userId;
       allow delete: if isParent();
+    }
+
+    // PINs — kept out of /users so public reads don't expose them.
+    match /userPins/{userId} {
+      // Only the user themselves can read their own PIN (for login verification).
+      allow read: if isAuth() && request.auth.uid == userId;
+      // Parents can set any PIN; a user can set/update their own PIN.
+      allow write: if isAuth() && (isParent() || request.auth.uid == userId);
     }
 
     // Conversations
