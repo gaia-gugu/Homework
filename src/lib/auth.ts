@@ -35,25 +35,26 @@ function toOldPassword(pin: string) {
 }
 
 export async function loginWithPin(username: string, pin: string): Promise<AppUser> {
-  // Look up user by current username in Firestore — supports renamed usernames
-  const q = query(collection(db, 'users'), where('username', '==', username.toLowerCase().trim()));
-  const qsnap = await getDocs(q);
-  if (qsnap.empty) throw new Error('User not found');
-  const userDoc = qsnap.docs[0];
-  const userId = userDoc.id;
-  const data = userDoc.data();
-
-  // Derive Firebase Auth password from the stored (original) email prefix
-  const emailPrefix = data.email.replace('@family.local', '');
+  // Derive email from the entered username. Firestore rules require auth to
+  // read /users, so we must sign into Firebase Auth *before* loading the
+  // profile. This means login uses the original username (the email prefix),
+  // even if a parent has since renamed the user in Firestore.
+  const normalizedName = username.toLowerCase().trim();
+  const email = toEmail(normalizedName);
 
   // Try the new fixed-password scheme first
   try {
-    await signInWithEmailAndPassword(auth, data.email, toFixedPassword(emailPrefix));
+    await signInWithEmailAndPassword(auth, email, toFixedPassword(normalizedName));
   } catch {
     // Fall back to old PIN-based scheme (accounts created before the fix)
-    await signInWithEmailAndPassword(auth, data.email, toOldPassword(pin));
-    try { await updatePassword(auth.currentUser!, toFixedPassword(emailPrefix)); } catch { /* ignore */ }
+    await signInWithEmailAndPassword(auth, email, toOldPassword(pin));
+    try { await updatePassword(auth.currentUser!, toFixedPassword(normalizedName)); } catch { /* ignore */ }
   }
+
+  const userId = auth.currentUser!.uid;
+  const snap = await getDoc(doc(db, 'users', userId));
+  if (!snap.exists()) throw new Error('User profile not found');
+  const data = snap.data();
 
   if (data.pin) {
     // PIN is stored — verify it
