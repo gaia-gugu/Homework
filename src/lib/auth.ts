@@ -16,7 +16,7 @@ import {
   deleteField,
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import type { AppUser, Role, Lang } from '../types';
+import type { AppUser, Role, Lang, GrandparentTitle } from '../types';
 
 // Firebase Auth uses a fixed session password (never the PIN).
 // The PIN lives in /userPins (auth-gated) so /users can stay publicly readable
@@ -98,8 +98,10 @@ export async function createFamilyUser(params: {
   color: string;
   avatar: string;
   language: Lang;
-  grandparentTitle?: '公公' | '婆婆';
+  grandparentTitle?: GrandparentTitle;
   notificationEmail?: string;
+  allowedGrandparentIds?: string[];
+  grandparentTitleOverrides?: Record<string, GrandparentTitle>;
   createdBy: string;
 }): Promise<AppUser> {
   const { createUserWithEmailAndPassword } = await import('firebase/auth');
@@ -117,6 +119,8 @@ export async function createFamilyUser(params: {
     createdBy:   params.createdBy,
     ...(params.grandparentTitle  && { grandparentTitle:  params.grandparentTitle }),
     ...(params.notificationEmail && { notificationEmail: params.notificationEmail }),
+    ...(params.allowedGrandparentIds && params.allowedGrandparentIds.length > 0 && { allowedGrandparentIds: params.allowedGrandparentIds }),
+    ...(params.grandparentTitleOverrides && Object.keys(params.grandparentTitleOverrides).length > 0 && { grandparentTitleOverrides: params.grandparentTitleOverrides }),
   };
   await setDoc(doc(db, 'users', cred.user.uid), userData);
   // PIN lives separately so public reads on /users don't leak it.

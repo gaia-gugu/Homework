@@ -5,8 +5,8 @@ import { PageHeader } from '../../components/common/PageHeader';
 import { Avatar } from '../../components/common/Avatar';
 import { getAllUsers, createFamilyUser, updateUserProfile, deleteUserAccount, updateUserPin, updateUsername } from '../../lib/auth';
 import { updateGrandchildAppearanceInConversations } from '../../lib/db';
-import type { AppUser, Role } from '../../types';
-import { CHILD_COLORS, CHILD_AVATARS, GRANDPA_COLOR, GRANDMA_COLOR, COLOR_PALETTE, AVATAR_OPTIONS } from '../../constants';
+import type { AppUser, Role, GrandparentTitle } from '../../types';
+import { CHILD_COLORS, CHILD_AVATARS, GRANDPA_COLOR, GRANDMA_COLOR, PATERNAL_GRANDMA_COLOR, COLOR_PALETTE, AVATAR_OPTIONS } from '../../constants';
 
 const ROLE_LABELS: Record<Role, string> = {
   parent:      'Parent',
@@ -21,6 +21,20 @@ interface EditState {
   avatar: string;
   notificationEmail: string;
   newPin: string;
+  allowedGrandparentIds: string[];
+  grandparentTitleOverrides: Record<string, GrandparentTitle>;
+}
+
+const TITLE_OVERRIDE_OPTIONS: GrandparentTitle[] = ['公公', '婆婆', '嫲嫲', '姥姥'];
+
+function defaultGrandparentColor(title: '公公' | '婆婆' | '嫲嫲'): string {
+  if (title === '公公') return GRANDPA_COLOR;
+  if (title === '嫲嫲') return PATERNAL_GRANDMA_COLOR;
+  return GRANDMA_COLOR;
+}
+
+function defaultGrandparentAvatar(title: '公公' | '婆婆' | '嫲嫲'): string {
+  return title === '公公' ? '👴' : '👵';
 }
 
 export function ManageAccounts() {
@@ -33,8 +47,12 @@ export function ManageAccounts() {
 
   const [newUser, setNewUser] = useState({
     username: '', displayName: '', pin: '', role: 'grandchild' as Role,
-    grandparentTitle: '公公' as '公公' | '婆婆', notificationEmail: '',
+    grandparentTitle: '公公' as '公公' | '婆婆' | '嫲嫲', notificationEmail: '',
+    allowedGrandparentIds: [] as string[],
+    grandparentTitleOverrides: {} as Record<string, GrandparentTitle>,
   });
+
+  const grandparentUsers = users.filter(u => u.role === 'grandparent');
 
   useEffect(() => { getAllUsers().then(setUsers); }, []);
 
@@ -47,6 +65,8 @@ export function ManageAccounts() {
       avatar: u.avatar,
       notificationEmail: u.notificationEmail ?? '',
       newPin: '',
+      allowedGrandparentIds: u.allowedGrandparentIds ?? [],
+      grandparentTitleOverrides: u.grandparentTitleOverrides ?? {},
     });
   }
 
@@ -60,6 +80,10 @@ export function ManageAccounts() {
         avatar: editState.avatar,
         notificationEmail: editState.notificationEmail,
       };
+      if (u.role === 'grandchild') {
+        updates.allowedGrandparentIds = editState.allowedGrandparentIds;
+        updates.grandparentTitleOverrides = editState.grandparentTitleOverrides;
+      }
       await updateUserProfile(u.id, updates);
       if (editState.username && editState.username !== u.username) {
         await updateUsername(u.id, editState.username);
@@ -89,22 +113,31 @@ export function ManageAccounts() {
     setSaving(true);
     try {
       const color = newUser.role === 'grandparent'
-        ? (newUser.grandparentTitle === '公公' ? GRANDPA_COLOR : GRANDMA_COLOR)
+        ? defaultGrandparentColor(newUser.grandparentTitle)
         : CHILD_COLORS[users.filter(u => u.role === 'grandchild').length % 4];
       const avatar = newUser.role === 'grandparent'
-        ? (newUser.grandparentTitle === '公公' ? '👴' : '👵')
+        ? defaultGrandparentAvatar(newUser.grandparentTitle)
         : CHILD_AVATARS[users.filter(u => u.role === 'grandchild').length % 4];
       const created = await createFamilyUser({
-        ...newUser,
+        username: newUser.username,
+        displayName: newUser.displayName,
+        pin: newUser.pin,
+        role: newUser.role,
         color, avatar,
         language: 'en',
         grandparentTitle: newUser.role === 'grandparent' ? newUser.grandparentTitle : undefined,
         notificationEmail: newUser.notificationEmail || undefined,
+        allowedGrandparentIds: newUser.role === 'grandchild' ? newUser.allowedGrandparentIds : undefined,
+        grandparentTitleOverrides: newUser.role === 'grandchild' ? newUser.grandparentTitleOverrides : undefined,
         createdBy: user.id,
       });
       setUsers(prev => [...prev, created]);
       setShowCreate(false);
-      setNewUser({ username: '', displayName: '', pin: '', role: 'grandchild', grandparentTitle: '公公', notificationEmail: '' });
+      setNewUser({
+        username: '', displayName: '', pin: '', role: 'grandchild',
+        grandparentTitle: '公公', notificationEmail: '',
+        allowedGrandparentIds: [], grandparentTitleOverrides: {},
+      });
     } finally {
       setSaving(false);
     }
@@ -142,6 +175,50 @@ export function ManageAccounts() {
                       <input value={editState.displayName} onChange={e => setEditState(s => ({ ...s!, displayName: e.target.value }))} placeholder="Display name" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
                       <input value={editState.notificationEmail} onChange={e => setEditState(s => ({ ...s!, notificationEmail: e.target.value }))} placeholder="Notification email (optional)" type="email" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
                       <input value={editState.newPin} onChange={e => setEditState(s => ({ ...s!, newPin: e.target.value.replace(/\D/g, '').slice(0, 4) }))} placeholder="New PIN (4 digits, leave blank to keep)" inputMode="numeric" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
+
+                      {u.role === 'grandchild' && grandparentUsers.length > 0 && (
+                        <div className="border border-gray-200 rounded-xl p-3 space-y-2">
+                          <p className="text-xs font-semibold text-gray-600">Grandparents this child can message</p>
+                          <p className="text-[11px] text-gray-400 -mt-1">Leave all unchecked to allow messaging every grandparent.</p>
+                          {grandparentUsers.map(gp => {
+                            const checked = editState.allowedGrandparentIds.includes(gp.id);
+                            const overrideTitle = editState.grandparentTitleOverrides[gp.id];
+                            return (
+                              <div key={gp.id} className="flex items-center gap-2">
+                                <label className="flex items-center gap-2 text-sm text-gray-700 flex-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => setEditState(s => ({
+                                      ...s!,
+                                      allowedGrandparentIds: checked
+                                        ? s!.allowedGrandparentIds.filter(id => id !== gp.id)
+                                        : [...s!.allowedGrandparentIds, gp.id],
+                                    }))}
+                                  />
+                                  <span>{gp.grandparentTitle} <span className="text-gray-400">({gp.displayName})</span></span>
+                                </label>
+                                <select
+                                  value={overrideTitle ?? ''}
+                                  onChange={e => setEditState(s => {
+                                    const next = { ...s!.grandparentTitleOverrides };
+                                    if (e.target.value) next[gp.id] = e.target.value as GrandparentTitle;
+                                    else delete next[gp.id];
+                                    return { ...s!, grandparentTitleOverrides: next };
+                                  })}
+                                  className="border border-gray-200 rounded-lg px-2 py-1 text-xs"
+                                  title="Show this grandparent under a different title for this child"
+                                >
+                                  <option value="">Default ({gp.grandparentTitle})</option>
+                                  {TITLE_OVERRIDE_OPTIONS.map(t => (
+                                    <option key={t} value={t}>Show as {t}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
 
                       <div>
                         <p className="text-xs text-gray-500 mb-2">Colour</p>
@@ -214,10 +291,54 @@ export function ManageAccounts() {
               <option value="parent">Parent</option>
             </select>
             {newUser.role === 'grandparent' && (
-              <select value={newUser.grandparentTitle} onChange={e => setNewUser(s => ({ ...s, grandparentTitle: e.target.value as '公公' | '婆婆' }))} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none">
-                <option value="公公">公公 (Paternal Grandfather)</option>
-                <option value="婆婆">婆婆 (Paternal Grandmother)</option>
+              <select value={newUser.grandparentTitle} onChange={e => setNewUser(s => ({ ...s, grandparentTitle: e.target.value as '公公' | '婆婆' | '嫲嫲' }))} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none">
+                <option value="公公">公公</option>
+                <option value="婆婆">婆婆</option>
+                <option value="嫲嫲">嫲嫲</option>
               </select>
+            )}
+            {newUser.role === 'grandchild' && grandparentUsers.length > 0 && (
+              <div className="border border-gray-200 rounded-xl p-3 space-y-2">
+                <p className="text-xs font-semibold text-gray-600">Grandparents this child can message</p>
+                <p className="text-[11px] text-gray-400 -mt-1">Leave all unchecked to allow messaging every grandparent.</p>
+                {grandparentUsers.map(gp => {
+                  const checked = newUser.allowedGrandparentIds.includes(gp.id);
+                  const overrideTitle = newUser.grandparentTitleOverrides[gp.id];
+                  return (
+                    <div key={gp.id} className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 text-sm text-gray-700 flex-1">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => setNewUser(s => ({
+                            ...s,
+                            allowedGrandparentIds: checked
+                              ? s.allowedGrandparentIds.filter(id => id !== gp.id)
+                              : [...s.allowedGrandparentIds, gp.id],
+                          }))}
+                        />
+                        <span>{gp.grandparentTitle} <span className="text-gray-400">({gp.displayName})</span></span>
+                      </label>
+                      <select
+                        value={overrideTitle ?? ''}
+                        onChange={e => setNewUser(s => {
+                          const next = { ...s.grandparentTitleOverrides };
+                          if (e.target.value) next[gp.id] = e.target.value as GrandparentTitle;
+                          else delete next[gp.id];
+                          return { ...s, grandparentTitleOverrides: next };
+                        })}
+                        className="border border-gray-200 rounded-lg px-2 py-1 text-xs"
+                        title="Show this grandparent under a different title for this child"
+                      >
+                        <option value="">Default ({gp.grandparentTitle})</option>
+                        {TITLE_OVERRIDE_OPTIONS.map(t => (
+                          <option key={t} value={t}>Show as {t}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
             )}
             <input value={newUser.username} onChange={e => setNewUser(s => ({ ...s, username: e.target.value.toLowerCase().replace(/\s/g, '') }))} placeholder="Login username (no spaces, e.g. emma)" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
             <input value={newUser.displayName} onChange={e => setNewUser(s => ({ ...s, displayName: e.target.value }))} placeholder="Display name (e.g. Emma)" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />

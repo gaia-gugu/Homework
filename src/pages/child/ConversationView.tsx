@@ -7,7 +7,7 @@ import { MessageBubble } from '../../components/common/MessageBubble';
 import { MediaInput } from '../../components/common/MediaInput';
 import { subscribeConversation, subscribeMessages, sendMessage, closeConversation, markConversationRead, toggleReaction } from '../../lib/db';
 import type { Conversation, Message } from '../../types';
-import { GRANDPA_COLOR, GRANDMA_COLOR } from '../../constants';
+import { gpColorFromTitle } from '../../constants';
 
 export function ChildConversationView() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -36,7 +36,7 @@ export function ChildConversationView() {
     }
   }, [conversation, conversationId]);
 
-  const color = conversation?.grandparentTitle === '公公' ? GRANDPA_COLOR : GRANDMA_COLOR;
+  const color = gpColorFromTitle(conversation?.grandparentTitle);
 
   async function handleSend(text: string, type: 'text' | 'photo' | 'voice', mediaUrl?: string) {
     if (!user || !conversationId) return;

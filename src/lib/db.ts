@@ -37,6 +37,16 @@ export async function createConversation(
   messageType: 'text' | 'photo' | 'voice' = 'text',
   mediaUrl?: string,
 ): Promise<string> {
+  if (
+    grandchild.allowedGrandparentIds &&
+    grandchild.allowedGrandparentIds.length > 0 &&
+    !grandchild.allowedGrandparentIds.includes(grandparent.id)
+  ) {
+    throw new Error('This child is not allowed to message this grandparent.');
+  }
+
+  const resolvedTitle = grandchild.grandparentTitleOverrides?.[grandparent.id] ?? grandparent.grandparentTitle!;
+
   const batch = writeBatch(db);
 
   const convRef = doc(collection(db, 'conversations'));
@@ -47,7 +57,7 @@ export async function createConversation(
     grandchildAvatar:  grandchild.avatar,
     grandparentId:     grandparent.id,
     grandparentName:   grandparent.displayName,
-    grandparentTitle:  grandparent.grandparentTitle!,
+    grandparentTitle:  resolvedTitle,
     promptId:          payload.promptId,
     title:             payload.title,
     status:            'open',

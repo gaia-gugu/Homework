@@ -7,8 +7,8 @@ import { LanguageToggle } from '../../components/common/LanguageToggle';
 import { logoutUser } from '../../lib/auth';
 import { getOpenConversation, subscribeChildConversations } from '../../lib/db';
 import { getUsersByRole } from '../../lib/auth';
-import type { AppUser, Conversation } from '../../types';
-import { GRANDPA_COLOR, GRANDMA_COLOR } from '../../constants';
+import type { AppUser, Conversation, GrandparentTitle } from '../../types';
+import { gpColorFromTitle, gpEmojiFromTitle } from '../../constants';
 
 export function ChildHome() {
   const { user, setUser, language } = useAuthStore();
@@ -47,8 +47,12 @@ export function ChildHome() {
 
   const unreadCount = conversations.filter(c => c.unreadGrandchild).length;
 
-  const gpColor = (gp: AppUser) => gp.grandparentTitle === '公公' ? GRANDPA_COLOR : GRANDMA_COLOR;
-  const gpEmoji = (gp: AppUser) => gp.grandparentTitle === '公公' ? '👴' : '👵';
+  const resolveTitle = (gp: AppUser): GrandparentTitle | undefined =>
+    user?.grandparentTitleOverrides?.[gp.id] ?? gp.grandparentTitle;
+
+  const visibleGrandparents = user?.allowedGrandparentIds && user.allowedGrandparentIds.length > 0
+    ? grandparents.filter(gp => user.allowedGrandparentIds!.includes(gp.id))
+    : grandparents;
 
   async function handleAsk(gp: AppUser) {
     const open = openConvs[gp.id];
@@ -81,12 +85,13 @@ export function ChildHome() {
 
       <main className="px-5 space-y-4 pb-10 max-w-lg mx-auto">
         {/* Grandparent buttons */}
-        {grandparents
+        {visibleGrandparents
           .sort((a, b) => (a.grandparentTitle === '公公' ? -1 : 1) - (b.grandparentTitle === '公公' ? -1 : 1))
           .map(gp => {
             const open = openConvs[gp.id];
-            const color = gpColor(gp);
-            const isGrandpa = gp.grandparentTitle === '公公';
+            const title = resolveTitle(gp);
+            const color = gpColorFromTitle(title);
+            const isGrandpa = title === '公公';
             return (
               <button
                 key={gp.id}
@@ -98,19 +103,19 @@ export function ChildHome() {
                   className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-sm shrink-0"
                   style={{ backgroundColor: color + '20' }}
                 >
-                  {gpEmoji(gp)}
+                  {gpEmojiFromTitle(title)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xl font-black" style={{ color }}>
-                      {gp.grandparentTitle}
+                      {title}
                     </span>
                     <span className="text-sm text-gray-400 font-medium">{gp.displayName}</span>
                   </div>
                   <p className="text-sm mt-0.5" style={{ color: color + 'cc' }}>
                     {open
                       ? (language === 'zh' ? '💬 继续聊天中的话题' : '💬 Continue your conversation')
-                      : (language === 'zh' ? `✨ ${isGrandpa ? '问公公' : '问婆婆'}一个问题` : `✨ Ask ${gp.grandparentTitle} a question`)}
+                      : (language === 'zh' ? `✨ ${isGrandpa ? '问公公' : `问${title}`}一个问题` : `✨ Ask ${title} a question`)}
                   </p>
                 </div>
                 <ChevronRight size={20} style={{ color: color + '80' }} />

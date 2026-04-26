@@ -1,4 +1,4 @@
-import type { PromptCategory, Prompt } from './types';
+import type { PromptCategory, Prompt, GrandparentTitle } from './types';
 import type { Timestamp } from 'firebase/firestore';
 
 const ts = { seconds: 0, nanoseconds: 0, toDate: () => new Date(), toMillis: () => 0, valueOf: () => '' } as unknown as Timestamp;
@@ -14,6 +14,19 @@ export const CHILD_AVATARS = ['🦊', '🐨', '🐸', '🦋'];
 
 export const GRANDPA_COLOR = '#2563EB';
 export const GRANDMA_COLOR = '#DB2777';
+export const PATERNAL_GRANDMA_COLOR = '#7C3AED';
+
+export const GRANDPARENT_TITLES: GrandparentTitle[] = ['公公', '婆婆', '嫲嫲', '姥姥'];
+
+export function gpColorFromTitle(title: GrandparentTitle | undefined): string {
+  if (title === '公公') return GRANDPA_COLOR;
+  if (title === '嫲嫲' || title === '姥姥') return PATERNAL_GRANDMA_COLOR;
+  return GRANDMA_COLOR;
+}
+
+export function gpEmojiFromTitle(title: GrandparentTitle | undefined): string {
+  return title === '公公' ? '👴' : '👵';
+}
 
 export const COLOR_PALETTE = [
   '#EF4444', '#F97316', '#EAB308', '#EA580C', '#D97706',

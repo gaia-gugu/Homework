@@ -6,6 +6,8 @@ export type MessageType = 'text' | 'photo' | 'voice';
 export type PromptStatus = 'active' | 'suggested' | 'rejected';
 export type Lang = 'en' | 'zh';
 
+export type GrandparentTitle = '公公' | '婆婆' | '嫲嫲' | '姥姥';
+
 export interface AppUser {
   id: string;
   username: string;
@@ -15,9 +17,15 @@ export interface AppUser {
   avatar: string;
   email: string;
   language: Lang;
-  grandparentTitle?: '公公' | '婆婆';
+  grandparentTitle?: GrandparentTitle;
   notificationEmail?: string;
   pin?: string;
+  // Grandchild-only: if set, this grandchild can only message grandparents in this list.
+  // Undefined means no restriction (existing behaviour).
+  allowedGrandparentIds?: string[];
+  // Grandchild-only: per-grandparent display-title override.
+  // E.g. cousin sees the paternal grandma as 姥姥 instead of her default 嫲嫲.
+  grandparentTitleOverrides?: Record<string, GrandparentTitle>;
   createdAt: Timestamp;
   createdBy: string;
 }
@@ -30,7 +38,7 @@ export interface Conversation {
   grandchildAvatar: string;
   grandparentId: string;
   grandparentName: string;
-  grandparentTitle: '公公' | '婆婆';
+  grandparentTitle: GrandparentTitle;
   promptId: string | null;
   title: string;
   status: ConversationStatus;

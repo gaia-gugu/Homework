@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Conversation } from '../../types';
 import { Avatar } from './Avatar';
 import { useAuthStore } from '../../store/authStore';
+import { gpColorFromTitle, gpEmojiFromTitle } from '../../constants';
 
 interface ConversationCardProps {
   conversation: Conversation;
@@ -31,9 +32,9 @@ export function ConversationCard({ conversation: c, viewAs, linkTo }: Conversati
 
   const displayName = viewAs === 'grandchild' ? c.grandparentName : c.grandchildName;
   const displayColor = viewAs === 'grandchild'
-    ? (c.grandparentTitle === '公公' ? '#2563eb' : '#db2777')
+    ? gpColorFromTitle(c.grandparentTitle)
     : c.grandchildColor;
-  const displayAvatar = viewAs === 'grandchild' ? (c.grandparentTitle === '公公' ? '👴' : '👵') : c.grandchildAvatar;
+  const displayAvatar = viewAs === 'grandchild' ? gpEmojiFromTitle(c.grandparentTitle) : c.grandchildAvatar;
 
   return (
     <button

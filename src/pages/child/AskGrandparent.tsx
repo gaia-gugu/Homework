@@ -6,7 +6,7 @@ import { PageHeader } from '../../components/common/PageHeader';
 import { getUserById } from '../../lib/auth';
 import { getActivePrompts, getClaimsForGrandparent, createConversation, getPromptCategories } from '../../lib/db';
 import type { AppUser, Prompt, PromptClaim, PromptCategory } from '../../types';
-import { GRANDPA_COLOR, GRANDMA_COLOR } from '../../constants';
+import { gpColorFromTitle, gpEmojiFromTitle } from '../../constants';
 
 export function AskGrandparent() {
   const { grandparentId } = useParams<{ grandparentId: string }>();
@@ -34,8 +34,11 @@ export function AskGrandparent() {
     getPromptCategories().then(setCategories);
   }, [grandparentId]);
 
-  const color = grandparent?.grandparentTitle === '公公' ? GRANDPA_COLOR : GRANDMA_COLOR;
-  const emoji = grandparent?.grandparentTitle === '公公' ? '👴' : '👵';
+  const title = grandparent
+    ? (user?.grandparentTitleOverrides?.[grandparent.id] ?? grandparent.grandparentTitle)
+    : undefined;
+  const color = gpColorFromTitle(title);
+  const emoji = gpEmojiFromTitle(title);
 
   const claimedPromptIds = new Set(claims.map(c => c.promptId));
 
@@ -67,9 +70,9 @@ export function AskGrandparent() {
   }
 
   const t = {
-    asking:    language === 'zh' ? `问${grandparent?.grandparentTitle}` : `Ask ${grandparent?.grandparentTitle}`,
+    asking:    language === 'zh' ? `问${title}` : `Ask ${title}`,
     question:  language === 'zh' ? '你的问题' : 'Your question',
-    placeholder: language === 'zh' ? `你想问${grandparent?.grandparentTitle}什么？` : `What would you like to ask ${grandparent?.grandparentTitle}?`,
+    placeholder: language === 'zh' ? `你想问${title}什么？` : `What would you like to ask ${title}?`,
     suggested: language === 'zh' ? '或从题库中选一个' : 'Or pick from the question library',
     send:      language === 'zh' ? '发送' : 'Send',
     claimed:   language === 'zh' ? '已被' : 'Asked by',
@@ -90,7 +93,7 @@ export function AskGrandparent() {
             <div>
               <p className="font-bold text-gray-800">{grandparent.displayName}</p>
               <p className="text-sm" style={{ color }}>
-                {language === 'zh' ? `向${grandparent.grandparentTitle}提问` : `Send a question to ${grandparent.grandparentTitle}`}
+                {language === 'zh' ? `向${title}提问` : `Send a question to ${title}`}
               </p>
             </div>
           </div>
