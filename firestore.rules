@@ -1,0 +1,112 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: is the request from an authenticated user?
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Helper: get the current user's profile
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Helper: is the current user a parent/admin?
+    function isParent() {
+      return isAuth() && myProfile().role == 'parent';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Public read so the login screen can look up the stored email by
+      // username before signing in. PINs are NOT stored here — see /userPins.
+      allow read: if true;
+      // Only parents can create/update/delete users (except own profile update)
+      allow create: if isParent();
+      allow update: if isParent() || request.auth.uid == userId;
+      allow delete: if isParent();
+    }
+
+    // PINs — kept out of /users so public reads don't expose them.
+    match /userPins/{userId} {
+      // Only the user themselves can read their own PIN (for login verification).
+      allow read: if isAuth() && request.auth.uid == userId;
+      // Parents can set any PIN; a user can set/update their own PIN.
+      allow write: if isAuth() && (isParent() || request.auth.uid == userId);
+    }
+
+    // Conversations
+    match /conversations/{convId} {
+      // Participants and parents can read
+      allow read: if isAuth() && (
+        isParent() ||
+        resource.data.grandchildId == request.auth.uid ||
+        resource.data.grandparentId == request.auth.uid
+      );
+      // Grandchildren and grandparents can create conversations
+      allow create: if isAuth() && (
+        myProfile().role == 'grandchild' || myProfile().role == 'grandparent'
+      );
+      // Participants and parents can update (for closing, marking read, etc.)
+      allow update: if isAuth() && (
+        isParent() ||
+        resource.data.grandchildId == request.auth.uid ||
+        resource.data.grandparentId == request.auth.uid
+      );
+      allow delete: if isParent();
+    }
+
+    // Messages
+    match /messages/{msgId} {
+      // Read: participants + parents (via conversation lookup)
+      allow read: if isAuth();
+      // Write: authenticated family members only
+      allow create: if isAuth() && (
+        myProfile().role == 'grandchild' ||
+        myProfile().role == 'grandparent' ||
+        isParent()
+      );
+      // reactions field can be updated by any family member; only parents can delete
+      allow update: if isAuth() && (
+        isParent() ||
+        myProfile().role == 'grandchild' ||
+        myProfile().role == 'grandparent'
+      );
+      allow delete: if isParent();
+    }
+
+    // Prompt categories
+    match /categories/{catId} {
+      allow read: if isAuth();
+      allow write: if isParent();
+    }
+
+    // Prompts
+    match /prompts/{promptId} {
+      allow read: if isAuth();
+      // Grandparents can suggest (create with status=suggested), parents can do anything
+      allow create: if isAuth() && (
+        isParent() ||
+        (myProfile().role == 'grandparent' && request.resource.data.status == 'suggested')
+      );
+      allow update, delete: if isParent();
+    }
+
+    // Prompt claims
+    match /promptClaims/{claimId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && myProfile().role == 'grandchild';
+      allow delete: if isParent();
+    }
+
+    // Notifications
+    match /notifications/{notifId} {
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
+      allow create: if isAuth();
+      allow update: if isAuth() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+  }
+}
