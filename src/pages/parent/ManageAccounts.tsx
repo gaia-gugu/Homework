@@ -292,9 +292,9 @@ export function ManageAccounts() {
             </select>
             {newUser.role === 'grandparent' && (
               <select value={newUser.grandparentTitle} onChange={e => setNewUser(s => ({ ...s, grandparentTitle: e.target.value as '公公' | '婆婆' | '嫲嫲' }))} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none">
-                <option value="公公">公公</option>
-                <option value="婆婆">婆婆</option>
-                <option value="嫲嫲">嫲嫲</option>
+                <option value="公公">公公 (Maternal Grandfather)</option>
+                <option value="婆婆">婆婆 (Maternal Grandmother)</option>
+                <option value="嫲嫲">嫲嫲 (Paternal Grandmother)</option>
               </select>
             )}
             {newUser.role === 'grandchild' && grandparentUsers.length > 0 && (
