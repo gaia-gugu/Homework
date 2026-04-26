@@ -3,7 +3,7 @@ name: Deploy Family Stories to Firebase Hosting
 on:
   push:
     branches:
-      - claude/grandparent-grandchild-qa-UHvYk
+      - main
 
 jobs:
   build-and-deploy:
