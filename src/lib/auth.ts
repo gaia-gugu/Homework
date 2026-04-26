@@ -15,7 +15,8 @@ import {
   getDocs,
   deleteField,
 } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { initializeApp, getApps } from 'firebase/app';
+import { auth, db, app } from '../firebase';
 import type { AppUser, Role, Lang, GrandparentTitle } from '../types';
 
 // Firebase Auth uses a fixed session password (never the PIN).
@@ -104,9 +105,27 @@ export async function createFamilyUser(params: {
   grandparentTitleOverrides?: Record<string, GrandparentTitle>;
   createdBy: string;
 }): Promise<AppUser> {
-  const { createUserWithEmailAndPassword } = await import('firebase/auth');
+  const { createUserWithEmailAndPassword, getAuth } = await import('firebase/auth');
   const email = toEmail(params.username);
-  const cred = await createUserWithEmailAndPassword(auth, email, toFixedPassword(params.username));
+
+  // Use a secondary Firebase App for the Auth signup so the primary
+  // session (the signed-in parent) isn't replaced by the new user.
+  // Without this, the subsequent /users setDoc runs as the new user,
+  // and Firestore rules reject it (allow create: if isParent()).
+  const SECONDARY_NAME = 'secondary-user-creation';
+  const secondaryApp = getApps().find(a => a.name === SECONDARY_NAME)
+    ?? initializeApp(app.options, SECONDARY_NAME);
+  const secondaryAuth = getAuth(secondaryApp);
+
+  let newUid: string;
+  try {
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, toFixedPassword(params.username));
+    newUid = cred.user.uid;
+  } finally {
+    // Make sure the secondary auth doesn't keep a session around.
+    try { await secondaryAuth.signOut(); } catch { /* ignore */ }
+  }
+
   const userData: Omit<AppUser, 'id'> = {
     username:    params.username,
     displayName: params.displayName,
@@ -122,10 +141,10 @@ export async function createFamilyUser(params: {
     ...(params.allowedGrandparentIds && params.allowedGrandparentIds.length > 0 && { allowedGrandparentIds: params.allowedGrandparentIds }),
     ...(params.grandparentTitleOverrides && Object.keys(params.grandparentTitleOverrides).length > 0 && { grandparentTitleOverrides: params.grandparentTitleOverrides }),
   };
-  await setDoc(doc(db, 'users', cred.user.uid), userData);
-  // PIN lives separately so public reads on /users don't leak it.
-  await setDoc(doc(db, 'userPins', cred.user.uid), { pin: params.pin });
-  return { id: cred.user.uid, ...userData };
+  // These setDocs run with the PRIMARY auth (= the parent), so isParent() passes.
+  await setDoc(doc(db, 'users', newUid), userData);
+  await setDoc(doc(db, 'userPins', newUid), { pin: params.pin });
+  return { id: newUid, ...userData };
 }
 
 // Parent can update any user's PIN — only touches /userPins, no Firebase Auth change needed

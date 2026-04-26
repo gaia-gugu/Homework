@@ -44,6 +44,7 @@ export function ManageAccounts() {
   const [editState, setEditState] = useState<EditState | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const [newUser, setNewUser] = useState({
     username: '', displayName: '', pin: '', role: 'grandchild' as Role,
@@ -111,6 +112,7 @@ export function ManageAccounts() {
   async function handleCreate() {
     if (!user || !newUser.username || !newUser.displayName || newUser.pin.length !== 4 || saving) return;
     setSaving(true);
+    setCreateError(null);
     try {
       const color = newUser.role === 'grandparent'
         ? defaultGrandparentColor(newUser.grandparentTitle)
@@ -138,6 +140,13 @@ export function ManageAccounts() {
         grandparentTitle: '公公', notificationEmail: '',
         allowedGrandparentIds: [], grandparentTitleOverrides: {},
       });
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      const msg = code === 'auth/email-already-in-use'
+        ? 'That username is already taken — try a different one.'
+        : (e as Error)?.message ?? 'Something went wrong. Check the console for details.';
+      setCreateError(msg);
+      console.error('Create account failed:', e);
     } finally {
       setSaving(false);
     }
@@ -344,11 +353,16 @@ export function ManageAccounts() {
             <input value={newUser.displayName} onChange={e => setNewUser(s => ({ ...s, displayName: e.target.value }))} placeholder="Display name (e.g. Emma)" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
             <input value={newUser.pin} onChange={e => setNewUser(s => ({ ...s, pin: e.target.value.replace(/\D/g, '').slice(0, 4) }))} placeholder="4-digit PIN" inputMode="numeric" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
             <input value={newUser.notificationEmail} onChange={e => setNewUser(s => ({ ...s, notificationEmail: e.target.value }))} placeholder="Notification email (optional)" type="email" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-400" />
+            {createError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                {createError}
+              </p>
+            )}
             <div className="flex gap-2">
               <button onClick={handleCreate} disabled={!newUser.username || !newUser.displayName || newUser.pin.length !== 4 || saving} className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-bold text-sm disabled:opacity-50">
                 {saving ? 'Creating…' : 'Create Account'}
               </button>
-              <button onClick={() => setShowCreate(false)} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-semibold text-sm"><X size={15} /></button>
+              <button onClick={() => { setShowCreate(false); setCreateError(null); }} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-semibold text-sm"><X size={15} /></button>
             </div>
           </div>
         ) : (
